@@ -517,6 +517,36 @@ u8 fuzz_one_original(afl_state_t *afl) {
 
   }
 
+  /***********
+   * SKIPDET *
+   ***********/
+
+  u64 before_det_time = get_cur_time();
+#ifdef INTROSPECTION
+
+  u64 before_havoc_time;
+  u32 before_det_findings = afl->queued_items,
+      before_det_edges = count_non_255_bytes(afl, afl->virgin_bits),
+      before_havoc_findings, before_havoc_edges;
+  u8 is_logged = 0;
+
+#endif
+  if (!afl->skip_deterministic) {
+
+    if (!skip_deterministic_stage(afl, in_buf, out_buf, len, before_det_time)) {
+
+      goto abandon_entry;
+
+    }
+
+  }
+
+  u8 *skip_eff_map = afl->queue_cur->skipdet_e->skip_eff_map;
+
+  /**********
+   * CMPLOG *
+   **********/
+
   if (unlikely(afl->shm.cmplog_mode &&
                afl->queue_cur->colorized < afl->cmplog_lvl &&
                (u32)len <= afl->cmplog_max_filesize)) {
@@ -545,27 +575,9 @@ u8 fuzz_one_original(afl_state_t *afl) {
 
   }
 
-  u64 before_det_time = get_cur_time();
-#ifdef INTROSPECTION
 
-  u64 before_havoc_time;
-  u32 before_det_findings = afl->queued_items,
-      before_det_edges = count_non_255_bytes(afl, afl->virgin_bits),
-      before_havoc_findings, before_havoc_edges;
-  u8 is_logged = 0;
-
-#endif
-  if (!afl->skip_deterministic) {
-
-    if (!skip_deterministic_stage(afl, in_buf, out_buf, len, before_det_time)) {
-
-      goto abandon_entry;
-
-    }
-
-  }
-
-  u8 *skip_eff_map = afl->queue_cur->skipdet_e->skip_eff_map;
+  // allow more time for skipdet stage
+  before_det_time = get_cur_time();
 
   /* Skip right away if -d is given, if it has not been chosen sufficiently
      often to warrant the expensive deterministic stage (fuzz_level), or
