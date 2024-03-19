@@ -614,7 +614,7 @@ u8 fuzz_one_original(afl_state_t *afl) {
    * BRUTE ALL POSSIBLE DATA (based on SKIPDET)
    *********************************************/
 
-  if (getenv("AFL_SKIPDET_BRUTE")) brute_det = 1;
+  if (getenv("SKIPDET_BRUTE")) brute_det = 1;
 
   afl->stage_short = "brute";
   afl->stage_max = len >> 8;
