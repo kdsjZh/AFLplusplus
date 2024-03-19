@@ -617,14 +617,14 @@ u8 fuzz_one_original(afl_state_t *afl) {
   if (getenv("SKIPDET_BRUTE")) brute_det = 1;
 
   afl->stage_short = "brute";
-  afl->stage_max = len >> 8;
+  afl->stage_max = len << 8;
   afl->stage_name = "brute det";
 
   afl->stage_val_type = STAGE_VAL_BE;
   
   orig_hit_cnt = new_hit_cnt;
 
-  for (afl->stage_cur = 0; afl->stage_cur < (len >> 8); ++afl->stage_cur) {
+  for (afl->stage_cur = 0; afl->stage_cur < (len << 8); ++afl->stage_cur) {
 
     if (!brute_det) break;
 
@@ -643,11 +643,11 @@ u8 fuzz_one_original(afl_state_t *afl) {
 
     u8 orig = out_buf[afl->stage_cur_byte];
 
-    out_buf[afl->stage_cur] = afl->stage_cur_val;
+    out_buf[afl->stage_cur_byte] = afl->stage_cur_val;
 
     if (common_fuzz_stuff(afl, out_buf, len)) { goto abandon_entry; }
       
-    out_buf[afl->stage_cur] = orig;
+    out_buf[afl->stage_cur_byte] = orig;
 
   }
 
