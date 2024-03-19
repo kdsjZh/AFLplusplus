@@ -297,6 +297,7 @@ enum {
   /* 21 */ STAGE_ITS,
   /* 22 */ STAGE_INF,
   /* 23 */ STAGE_QUICK,
+  /* 24 */ STAGE_BRUTE,
 
   STAGE_NUM_MAX
 

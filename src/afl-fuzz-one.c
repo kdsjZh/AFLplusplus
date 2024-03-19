@@ -333,7 +333,7 @@ u8 fuzz_one_original(afl_state_t *afl) {
   u64 havoc_queued = 0, orig_hit_cnt, new_hit_cnt = 0, prev_cksum, _prev_cksum;
   u32 splice_cycle = 0, perf_score = 100, orig_perf;
 
-  u8 ret_val = 1, doing_det = 0;
+  u8 ret_val = 1, doing_det = 0, brute_det = 0;
 
   u8  a_collect[MAX_AUTO_EXTRA];
   u32 a_len = 0;
@@ -611,6 +611,52 @@ u8 fuzz_one_original(afl_state_t *afl) {
   doing_det = 1;
 
   /*********************************************
+   * BRUTE ALL POSSIBLE DATA (based on SKIPDET)
+   *********************************************/
+
+  if (getenv("AFL_SKIPDET_BRUTE")) brute_det = 1;
+
+  afl->stage_short = "brute";
+  afl->stage_max = len >> 8;
+  afl->stage_name = "brute det";
+
+  afl->stage_val_type = STAGE_VAL_BE;
+  
+  orig_hit_cnt = new_hit_cnt;
+
+  for (afl->stage_cur = 0; afl->stage_cur < (len >> 8); ++afl->stage_cur) {
+
+    if (!brute_det) break;
+
+    afl->stage_cur_byte = afl->stage_cur >> 3;
+
+    if (!skip_eff_map[afl->stage_cur_byte]) {
+      
+      afl->stage_max -= 256;
+      continue;
+
+    }
+
+    if (is_det_timeout(before_det_time, 0)) { goto custom_mutator_stage; }
+
+    afl->stage_cur_val = (afl->stage_cur & 0xFF);
+
+    u8 orig = out_buf[afl->stage_cur_byte];
+
+    out_buf[afl->stage_cur] = afl->stage_cur_val;
+
+    if (common_fuzz_stuff(afl, out_buf, len)) { goto abandon_entry; }
+      
+    out_buf[afl->stage_cur] = orig;
+
+  }
+
+  new_hit_cnt = afl->queued_items + afl->saved_crashes;
+
+  afl->stage_finds[STAGE_BRUTE] += new_hit_cnt - orig_hit_cnt;
+  afl->stage_cycles[STAGE_BRUTE] += afl->stage_max;
+
+  /*********************************************
    * SIMPLE BITFLIP (+dictionary construction) *
    *********************************************/
 
@@ -643,6 +689,8 @@ u8 fuzz_one_original(afl_state_t *afl) {
   /* Now flip bits. */
 
   for (afl->stage_cur = 0; afl->stage_cur < afl->stage_max; ++afl->stage_cur) {
+  
+    if (brute_det) break;
 
     afl->stage_cur_byte = afl->stage_cur >> 3;
 
@@ -764,6 +812,8 @@ u8 fuzz_one_original(afl_state_t *afl) {
 
   for (afl->stage_cur = 0; afl->stage_cur < afl->stage_max; ++afl->stage_cur) {
 
+    if (brute_det) break;
+
     afl->stage_cur_byte = afl->stage_cur >> 3;
 
     if (!skip_eff_map[afl->stage_cur_byte]) continue;
@@ -802,6 +852,8 @@ u8 fuzz_one_original(afl_state_t *afl) {
   orig_hit_cnt = new_hit_cnt;
 
   for (afl->stage_cur = 0; afl->stage_cur < afl->stage_max; ++afl->stage_cur) {
+
+    if (brute_det) break;
 
     afl->stage_cur_byte = afl->stage_cur >> 3;
 
@@ -846,6 +898,8 @@ u8 fuzz_one_original(afl_state_t *afl) {
   prev_cksum = _prev_cksum;
 
   for (afl->stage_cur = 0; afl->stage_cur < afl->stage_max; ++afl->stage_cur) {
+
+    if (brute_det) break;
 
     afl->stage_cur_byte = afl->stage_cur;
 
@@ -990,6 +1044,8 @@ skip_bitflip:
   orig_hit_cnt = new_hit_cnt;
 
   for (i = 0; i < (u32)len; ++i) {
+
+    if (brute_det) break;
 
     u8 orig = out_buf[i];
 
@@ -1338,6 +1394,8 @@ skip_arith:
   /* Setting 8-bit integers. */
 
   for (i = 0; i < (u32)len; ++i) {
+
+    if (brute_det) break;
 
     u8 orig = out_buf[i];
 
