@@ -628,7 +628,7 @@ u8 fuzz_one_original(afl_state_t *afl) {
 
     if (!brute_det) break;
 
-    afl->stage_cur_byte = afl->stage_cur >> 3;
+    afl->stage_cur_byte = afl->stage_cur >> 8;
 
     if (!skip_eff_map[afl->stage_cur_byte]) {
       
