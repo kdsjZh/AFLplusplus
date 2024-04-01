@@ -104,11 +104,16 @@ u8 should_det_fuzz(afl_state_t *afl, struct queue_entry *q) {
 u8 skip_deterministic_stage(afl_state_t *afl, u8 *orig_buf, u8 *out_buf,
                             u32 len, u64 before_det_time) {
 
+  u8 worth_det = 0;
   u64 orig_hit_cnt, new_hit_cnt;
 
   if (afl->queue_cur->skipdet_e->done_eff) return 1;
 
-  if (!should_det_fuzz(afl, afl->queue_cur)) return 1;
+  worth_det = should_det_fuzz(afl, afl->queue_cur);
+  
+  if (getenv("AFL_SKIPDET_ALLSEED")) worth_det = 1;
+
+  if (!worth_det) return 1;
 
   /* Add check to make sure that for seeds without too much undet bits,
      we ignore them */
