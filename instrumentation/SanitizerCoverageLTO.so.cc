@@ -1994,7 +1994,7 @@ void ModuleSanitizerCoverageLTO::instrumentFunction(
   if (fFile.is_open()) {
 
     fFile << F.getName().str() << "," << ++afl_func_id << ","
-          << save_global << "," << afl_global_id << "\n";
+          << save_global + 1 << "," << afl_global_id << "\n";
 
   }
 
