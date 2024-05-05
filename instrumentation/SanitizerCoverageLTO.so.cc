@@ -61,6 +61,10 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/IR/PassManager.h"
 
+#ifdef AFL_USE_FISHFUZZ
+  #include "llvm/Analysis/CallPrinter.h"
+#endif 
+
 #include "config.h"
 #include "debug.h"
 #include "afl-llvm-common.h"
@@ -248,6 +252,9 @@ class ModuleSanitizerCoverageLTO
   uint32_t                         autodictionary_no_main = 0;
   uint32_t                         inst = 0;
   uint32_t                         afl_global_id = 0;
+#ifdef AFL_USE_FISHFUZZ
+  uint32_t                         afl_func_id = 0;
+#endif
   uint32_t                         unhandled = 0;
   uint32_t                         select_cnt = 0;
   uint32_t                         instrument_ctx = 0;
@@ -272,6 +279,9 @@ class ModuleSanitizerCoverageLTO
   Value                           *MapPtrFixed = NULL;
   AllocaInst                      *CTX_add = NULL;
   std::ofstream                    dFile;
+#ifdef AFL_USE_FISHFUZZ
+  std::ofstream                    fFile;
+#endif
   size_t                           found = 0;
   // AFL++ END
 
@@ -348,7 +358,11 @@ llvmGetPassPluginInfo() {
                 [](ModulePassManager &MPM, OptimizationLevel OL) {
 
                   MPM.addPass(ModuleSanitizerCoverageLTO());
-
+#ifdef AFL_USE_FISHFUZZ
+#if LLVM_VERSION_MAJOR >= 15
+                  MPM.addPass(CallGraphDOTPrinterPass());
+#endif
+#endif
                 });
 
           }};
@@ -489,6 +503,17 @@ bool ModuleSanitizerCoverageLTO::instrumentModule(
     if (dFile.is_open()) WARNF("Cannot access document file %s", ptr);
 
   }
+
+#ifdef AFL_USE_FISHFUZZ
+
+  if ((ptr = getenv("AFL_FISHFUZZ_FID")) != NULL) {
+
+    fFile.open(ptr, std::ofstream::out | std::ofstream::app);
+    if (fFile.is_open()) WARNF("Cannot access function id file %s", ptr);
+
+  }
+
+#endif
 
   // we make this the default as the fixed map has problems with
   // defered forkserver, early constructors, ifuncs and maybe more
@@ -1962,6 +1987,19 @@ void ModuleSanitizerCoverageLTO::instrumentFunction(
     fprintf(stderr, "Done instrumentation (%u-%u=%u %u-%u=%u)\n", inst,
             inst_save, inst - inst_save, afl_global_id, save_global,
             afl_global_id - save_global);*/
+
+#ifdef AFL_USE_FISHFUZZ
+
+  /* Function's bb range from save_global to afl_global_id */
+  if (fFile.is_open()) {
+
+    fFile << F.getName().str() << "," << ++afl_func_id << ","
+          << save_global << "," << afl_global_id << "\n";
+
+  }
+
+#endif
+
 
   if (inst_in_this_func && call_counter > 1) {
 
