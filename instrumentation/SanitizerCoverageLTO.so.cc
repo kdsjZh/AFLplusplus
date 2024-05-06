@@ -63,6 +63,7 @@
 
 #ifdef AFL_USE_FISHFUZZ
   #include "llvm/Analysis/CallPrinter.h"
+  #include <sys/stat.h>
 #endif 
 
 #include "config.h"
@@ -357,12 +358,14 @@ llvmGetPassPluginInfo() {
 #endif
                 [](ModulePassManager &MPM, OptimizationLevel OL) {
 
-                  MPM.addPass(ModuleSanitizerCoverageLTO());
 #ifdef AFL_USE_FISHFUZZ
 #if LLVM_VERSION_MAJOR >= 15
                   MPM.addPass(CallGraphDOTPrinterPass());
 #endif
 #endif
+
+                  MPM.addPass(ModuleSanitizerCoverageLTO());
+
                 });
 
           }};
@@ -506,13 +509,54 @@ bool ModuleSanitizerCoverageLTO::instrumentModule(
 
 #ifdef AFL_USE_FISHFUZZ
 
-  if ((ptr = getenv("AFL_FISHFUZZ_FID")) != NULL) {
+  /* check the ld-temp.o.callgraph.dot, rename to AFL_FISHFUZZ_TARGET */
 
-    fFile.open(ptr, std::ofstream::out | std::ofstream::app);
-    if (fFile.is_open()) WARNF("Cannot access function id file %s", ptr);
+  if (getenv("AFL_FISHFUZZ_IGNORE") == NULL) {
+
+    if ((ptr = getenv("AFL_FISHFUZZ_TARGET")) != NULL) {
+
+      char *bptr = getenv("AFL_FISHFUZZ_BIN"),
+          *dptr = getenv("AFL_FISHFUZZ_DIR");
+
+      if (bptr == NULL) FATAL("Please specify the AFL_FISHFUZZ_BIN in FishFuzz mode!");
+
+      if (dptr == NULL) FATAL("Please specify the AFL_FISHFUZZ_DIR in FishFuzz mode!");
+
+      struct stat st;
+      if (stat(dptr, &st) || !S_ISDIR(st.st_mode)) {
+
+        if (mkdir(dptr, 0777)) FATAL("Failed creating FishFuzz temp dir!");
+
+      }
+
+      if (strcmp(ptr, bptr) == 0) { 
+
+        if (access((char *)"ld-temp.o.callgraph.dot", F_OK) != -1) {
+
+          char dst_name[1024 * 16];
+
+          sprintf(dst_name, "%s/%s.callgraph.dot", dptr, bptr);
+
+          if (rename((char *)"ld-temp.o.callgraph.dot", dst_name))
+            FATAL("Failed moving callgraph");
+
+        } else FATAL("callgraph not found!");
+
+      }
+
+      char fid_name[1024 * 16];
+      sprintf(fid_name, "%s/fid", dptr);
+
+      fFile.open(fid_name, std::ofstream::out | std::ofstream::app);
+      if (!fFile.is_open()) FATAL("Cannot access function id file %s", fid_name);
+
+    } else {
+
+      FATAL("AFL_FISHFUZZ_TARGET not found!");
+
+    }
 
   }
-
 #endif
 
   // we make this the default as the fixed map has problems with

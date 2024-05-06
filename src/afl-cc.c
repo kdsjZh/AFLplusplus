@@ -3490,6 +3490,49 @@ static void edit_params(aflcc_state_t *aflcc, u32 argc, char **argv,
 
 }
 
+
+/* extract the target executable name and update to AFL_FISHFUZZ_TARGET */
+static void check_target_name(aflcc_state_t *aflcc, u32 argc, char **argv) {
+
+  u8 is_linking = 0, is_compile = 0;
+
+  unsetenv("AFL_FISHFUZZ_TARGET");
+  unsetenv("AFL_FISHFUZZ_IGNORE");
+
+  for (u32 i = 0; i < argc; i ++) {
+
+    if (!strcmp(argv[i], "conftest.c")) setenv("AFL_FISHFUZZ_IGNORE", "1", 1);
+
+    if (!strcmp(argv[i], "-c")) {
+      
+      is_compile = 1;
+
+      if (is_linking) { is_linking = 0; unsetenv("AFL_FISHFUZZ_TARGET"); }
+
+    }
+
+    if (!strcmp(argv[i], "-o") && !is_compile) {
+      
+      is_linking = 1;
+
+      if (i + 1 < argc) {
+
+        char *last_slash = strrchr(argv[i + 1], '/');
+        
+        if (last_slash) 
+          setenv("AFL_FISHFUZZ_TARGET", last_slash + 1, 1);
+        else 
+          setenv("AFL_FISHFUZZ_TARGET", argv[i + 1], 1);
+
+      }
+
+    }
+
+  }
+  
+}
+
+
 /* Main entry point */
 int main(int argc, char **argv, char **envp) {
 
@@ -3497,6 +3540,8 @@ int main(int argc, char **argv, char **envp) {
   aflcc_state_init(aflcc, (u8 *)argv[0]);
 
   check_environment_vars(envp);
+
+  check_target_name(aflcc, argc, argv);
 
   find_built_deps(aflcc);
 
