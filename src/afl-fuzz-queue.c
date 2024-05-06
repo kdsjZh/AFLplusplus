@@ -701,21 +701,6 @@ void destroy_queue(afl_state_t *afl) {
 }
 
 
-void update_bitmap_score(afl_state_t *afl, struct queue_entry *q) {
-
-  update_bitmap_score_orig(afl, q);
-#ifdef AFL_USE_FISHFUZZ
-  if (afl->use_fishfuzz) {
-
-    struct fishfuzz_info *ff_info = afl->ff_info;
-
-    update_bitmap_score_explore(afl, ff_info, q);
-
-  }
-#endif 
-
-}
-
 /* When we bump into a new path, we call this to see if the path appears
    more "favorable" than any of the existing ones. The purpose of the
    "favorables" is to have a minimal set of paths that trigger all the bits
@@ -829,6 +814,21 @@ void update_bitmap_score_orig(afl_state_t *afl, struct queue_entry *q) {
     }
 
   }
+
+}
+
+void update_bitmap_score(afl_state_t *afl, struct queue_entry *q) {
+
+  update_bitmap_score_orig(afl, q);
+#ifdef AFL_USE_FISHFUZZ
+  if (afl->use_fishfuzz) {
+
+    struct fishfuzz_info *ff_info = afl->ff_info;
+
+    update_bitmap_score_explore(afl, ff_info, q);
+
+  }
+#endif 
 
 }
 
@@ -1079,8 +1079,6 @@ void cull_queue(afl_state_t *afl) {
 
 #ifdef AFL_USE_FISHFUZZ
 
-  u64 tmp_time_stamp;
-
   u64 inter_explore_limit = INTER_EXPLORE_TLIMIT,
       intra_explore_limit = INTRA_EXPLORE_TLIMIT,
       target_exploit_limit = TARGET_EXPLOIT_TLIMIT;
@@ -1176,7 +1174,6 @@ void cull_queue(afl_state_t *afl) {
 
   } else PFATAL("Invalid mode given!");
 
-  tmp_time_stamp = get_cur_time();
   switch (ff_info->fish_seed_selection) {
     case INTRA_FUNC_EXPLORE : 
       return cull_queue_origin(afl);

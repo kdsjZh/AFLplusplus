@@ -224,7 +224,7 @@ void update_bitmap_score_explore(afl_state_t *afl, struct fishfuzz_info *ff_info
       //   if (afl->top_rated_explore[dst_func]->fuzz_level) afl->top_rated_explore[dst_func] = NULL;
       
       // }
-    u32 fexp_score = 0, shortest_dist = UNREACHABLE_DIST, src_func = 0;
+    u32 fexp_score = 0, shortest_dist = UNREACHABLE_DIST; //, src_func = 0;
 
     // for (auto iter = func_dist_map[dst_func].begin(); iter != func_dist_map[dst_func].end(); iter ++) {
       
@@ -240,7 +240,7 @@ void update_bitmap_score_explore(afl_state_t *afl, struct fishfuzz_info *ff_info
       
       if (trace_func[iter->src]) {
 
-        if (iter->shortest < shortest_dist) { src_func = iter->src; shortest_dist = iter->shortest; }
+        if (iter->shortest < shortest_dist) shortest_dist = iter->shortest;  // src_func = iter->src; 
 
       }
 
