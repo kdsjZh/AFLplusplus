@@ -7,6 +7,17 @@
 #define MAX_PATH_LENGTH (16 * 1024)
 #define MAX_LINE_LENGTH (16 * 1024)
 
+#define UNREACHABLE_DIST 0x7FFFFFFF
+
+/* Some time limitation for inter/intra-explore/exploit */
+#define MINIMAL_UPDATE_EXEC   (50 * 1000U)
+#define BEGIN_EXPLORE_TLIMIT  (30 * 60 * 1000U)
+#define INTER_EXPLORE_TLIMIT  (30 * 60 * 1000U)
+#define INTRA_EXPLORE_TLIMIT  (15 * 60 * 1000U)
+#define TARGET_EXPLOIT_TLIMIT (30 * 60 * 1000U)
+#define LOG_FREQUENCY_TLIMIT  (30 * 60 * 1000U)
+
+
 
 /* for fishfuzz's seed selection */
 enum {
@@ -89,9 +100,9 @@ struct fishfuzz_info {
       fish_seed_selection,
       no_exploitation;
   
-  u32 last_explored_item;
-
   u32 exploit_threshould; 
+
+  u64 func_map_size;
 
   u32 *shortest_dist;
 
@@ -106,7 +117,8 @@ struct fishfuzz_info {
 
 
 /* FishFuzz APIs */
-void initialize_fishfuzz(afl_state_t *afl);
-
+void initialize_fishfuzz(afl_state_t *);
+void target_ranking(afl_state_t *, struct fishfuzz_info *);
+void update_bitmap_score_explore(afl_state_t *, struct fishfuzz_info *, struct queue_entry *);
 
 #endif

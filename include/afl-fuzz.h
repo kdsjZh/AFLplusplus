@@ -707,7 +707,13 @@ typedef struct afl_state {
   // growing buf
   struct queue_entry **queue_buf;
 
+#ifndef AFL_USE_FISHFUZZ
   struct queue_entry **top_rated;           /* Top entries for bitmap bytes */
+#else 
+  struct queue_entry **top_rated,           /* Top entries for bitmap bytes */
+                     **top_rated_explore,
+                     **top_rated_exploit;
+#endif
 
   struct extra_data *extras;            /* Extra tokens to fuzz with        */
   u32                extras_cnt;        /* Total number of tokens read      */
@@ -844,6 +850,7 @@ typedef struct afl_state {
   struct skipdet_global *skipdet_g;
 
 #ifdef AFL_USE_FISHFUZZ
+  u8 use_fishfuzz;
   struct fishfuzz_info *ff_info;
 #endif 
 
