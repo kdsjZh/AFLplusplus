@@ -37,6 +37,9 @@
   #define _FILE_OFFSET_BITS 64
 #endif
 
+// FishFuzz Debug
+#define AFL_USE_FISHFUZZ 
+
 #include "config.h"
 #include "types.h"
 #include "debug.h"
@@ -839,6 +842,10 @@ typedef struct afl_state {
   struct havoc_profile *havoc_prof;
 
   struct skipdet_global *skipdet_g;
+
+#ifdef AFL_USE_FISHFUZZ
+  struct fishfuzz_info *ff_info;
+#endif 
 
 #ifdef INTROSPECTION
   char  mutation[8072];

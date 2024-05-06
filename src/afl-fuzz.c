@@ -46,6 +46,13 @@
 extern u64 time_spent_working;
 #endif
 
+#define AFL_USE_FISHFUZZ 
+
+#ifdef AFL_USE_FISHFUZZ
+  #include "fishfuzz.h"
+#endif 
+
+
 static void at_exit() {
 
   s32   i, pid1 = 0, pid2 = 0, pgrp = -1;
@@ -1472,6 +1479,11 @@ int main(int argc, char **argv_orig, char **envp) {
 
   setup_signal_handlers();
   check_asan_opts(afl);
+
+#ifdef AFL_USE_FISHFUZZ
+  // start loading the distance map
+  initialize_fishfuzz(afl, afl->ff_info);
+#endif 
 
   afl->power_name = power_names[afl->schedule];
 
