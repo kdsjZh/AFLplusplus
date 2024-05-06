@@ -34,6 +34,10 @@
 
 #include "cmplog.h"
 
+#ifdef AFL_USE_FISHFUZZ
+  #include "fishfuzz.h"
+#endif
+
 #ifdef PROFILING
 u64 time_spent_working = 0;
 #endif
@@ -1069,6 +1073,7 @@ abort_trimming:
 
 }
 
+
 /* Write a modified test case, run program, process results. Handle
    error conditions, returning 1 if it's time to bail out. This is
    a helper function for fuzz_one(). */
@@ -1085,6 +1090,15 @@ common_fuzz_stuff(afl_state_t *afl, u8 *out_buf, u32 len) {
   }
 
   fault = fuzz_run_target(afl, &afl->fsrv, afl->fsrv.exec_tmout);
+
+#ifdef AFL_USE_FISHFUZZ
+  struct fishfuzz_info *ff_info = afl->ff_info;
+  if (unlikely(!(afl->fsrv.total_execs & 0x1FF)) && !ff_info->no_exploitation) {
+    
+    if (afl->use_fishfuzz) update_fishfuzz_states(afl, ff_info);
+
+  }
+#endif
 
   if (afl->stop_soon) { return 1; }
 

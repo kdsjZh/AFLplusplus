@@ -1,5 +1,5 @@
-#ifndef _AFL_CMPLOG_H
-#define _AFL_CMPLOG_H
+#ifndef _AFL_FISHFUZZ_H
+#define _AFL_FISHFUZZ_H
 
 #include "types.h"
 #include "afl-fuzz.h"
@@ -107,7 +107,8 @@ struct fishfuzz_info {
   u32 *shortest_dist;
 
   u8 *unvisited_func_map, 
-     *iterated_func_map;
+     *iterated_func_map,
+     *virgin_funcs;
 
   struct func_dist_map *global_dist_map;
 
@@ -120,5 +121,5 @@ struct fishfuzz_info {
 void initialize_fishfuzz(afl_state_t *);
 void target_ranking(afl_state_t *, struct fishfuzz_info *);
 void update_bitmap_score_explore(afl_state_t *, struct fishfuzz_info *, struct queue_entry *);
-
+void update_fishfuzz_states(afl_state_t *, struct fishfuzz_info *);
 #endif

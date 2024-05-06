@@ -1482,7 +1482,8 @@ int main(int argc, char **argv_orig, char **envp) {
 
 #ifdef AFL_USE_FISHFUZZ
   // start loading the distance map
-  initialize_fishfuzz(afl, afl->ff_info);
+  initialize_fishfuzz(afl);
+  afl->use_fishfuzz = 1;
 #endif 
 
   afl->power_name = power_names[afl->schedule];

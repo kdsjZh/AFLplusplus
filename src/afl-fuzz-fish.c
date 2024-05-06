@@ -173,6 +173,8 @@ void initialize_fishfuzz(afl_state_t *afl) {
 */
 void update_bitmap_score_explore(afl_state_t *afl, struct fishfuzz_info *ff_info, struct queue_entry *q) {
 
+  if (!ff_info->virgin_funcs) return ;
+
   if (!ff_info->shortest_dist) {
     
     ff_info->shortest_dist = (u32 *)ck_alloc(sizeof(u32) * ff_info->func_map_size);
@@ -214,7 +216,7 @@ void update_bitmap_score_explore(afl_state_t *afl, struct fishfuzz_info *ff_info
 
   for (u32 dst_func = 0; dst_func < ff_info->func_map_size; dst_func ++) {
 
-    if (!ff_info->unvisited_func_map[dst_func] || ff_info->iterated_func_map[dst_func]) continue;
+    if (!ff_info->unvisited_func_map[dst_func] || ff_info->virgin_funcs[dst_func]) continue;
 
       // now we don't remove explored functions 
       // if (afl->top_rated_explore[dst_func]) {
@@ -325,5 +327,39 @@ void target_ranking(afl_state_t *afl, struct fishfuzz_info *ff_info) {
   }
 
   ck_free(reached_bugs);
+
+}
+
+
+void update_fishfuzz_states(afl_state_t *afl, struct fishfuzz_info *ff_info) {
+
+  if (unlikely(!ff_info->trigger_bits_count)) {
+  
+    ff_info->trigger_bits_count = ck_alloc(sizeof(u32) * afl->fsrv.map_size);
+  
+  }
+  if (unlikely(!ff_info->reach_bits_count)) {
+  
+    ff_info->reach_bits_count = ck_alloc(sizeof(u32) * afl->fsrv.map_size);
+  
+  }
+
+  /* TOFIX: handle if we target ASan labels */
+  u8 *targets_map = afl->fsrv.trace_bits;
+  for (u32 i = 0; i < afl->fsrv.map_size; i ++) {
+
+    if (unlikely(targets_map[i])) {
+
+      if (!ff_info->reach_bits_count[i]) {
+
+        ff_info->last_reach_time = get_cur_time();
+        ff_info->current_targets_reached ++;
+
+      }
+
+      ff_info->reach_bits_count[i] ++;
+      
+    }
+  }
 
 }

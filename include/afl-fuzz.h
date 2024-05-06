@@ -213,6 +213,9 @@ struct queue_entry {
       has_new_cov,                      /* Triggers new coverage?           */
       var_behavior,                     /* Variable behavior?               */
       favored,                          /* Currently favored?               */
+#ifdef AFL_USE_FISHFUZZ
+      retry, 
+#endif 
       fs_redundant,                     /* Marked as redundant in the fs?   */
       is_ascii,                         /* Is the input just ascii text?    */
       disabled;                         /* Is disabled from fuzz selection  */
@@ -1181,7 +1184,12 @@ void mark_as_redundant(afl_state_t *, struct queue_entry *, u8);
 void add_to_queue(afl_state_t *, u8 *, u32, u8);
 void destroy_queue(afl_state_t *);
 void update_bitmap_score(afl_state_t *, struct queue_entry *);
+#ifdef AFL_USE_FISHFUZZ 
+void cull_queue_explore(afl_state_t *, struct fishfuzz_info *);
+void cull_queue_exploit(afl_state_t *, struct fishfuzz_info *);
+#endif
 void cull_queue(afl_state_t *);
+void cull_queue_origin(afl_state_t *);
 u32  calculate_score(afl_state_t *, struct queue_entry *);
 
 /* Bitmap */
