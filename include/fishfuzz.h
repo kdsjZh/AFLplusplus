@@ -122,4 +122,7 @@ void initialize_fishfuzz(afl_state_t *);
 void target_ranking(afl_state_t *, struct fishfuzz_info *);
 void update_bitmap_score_explore(afl_state_t *, struct fishfuzz_info *, struct queue_entry *);
 void update_fishfuzz_states(afl_state_t *, struct fishfuzz_info *);
+
+void cull_queue_explore(afl_state_t *, struct fishfuzz_info *);
+void cull_queue_exploit(afl_state_t *, struct fishfuzz_info *);
 #endif

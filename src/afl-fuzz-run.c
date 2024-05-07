@@ -1130,7 +1130,16 @@ common_fuzz_stuff(afl_state_t *afl, u8 *out_buf, u32 len) {
 
   /* This handles FAULT_ERROR for us: */
 
-  afl->queued_discovered += save_if_interesting(afl, out_buf, len, fault);
+  u8 is_new = save_if_interesting(afl, out_buf, len, fault);
+  afl->queued_discovered += is_new;
+
+#ifdef AFL_USE_FISHFUZZ
+  if (is_new && (afl->fsrv.total_execs & 0x1FF) && !ff_info->no_exploitation) {
+    
+    update_fishfuzz_states(afl, ff_info);
+
+  } 
+#endif 
 
   if (!(afl->stage_cur % afl->stats_update_freq) ||
       afl->stage_cur + 1 == afl->stage_max) {
