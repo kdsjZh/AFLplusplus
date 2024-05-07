@@ -61,6 +61,8 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/IR/PassManager.h"
 
+#define AFL_USE_FISHFUZZ
+
 #ifdef AFL_USE_FISHFUZZ
   #include "llvm/Analysis/CallPrinter.h"
   #include <sys/stat.h>
@@ -121,6 +123,13 @@ static cl::opt<bool> ClPruneBlocks(
     "lto-coverage-prune-blocks",
     cl::desc("Reduce the number of instrumented blocks"), cl::Hidden,
     cl::init(true));
+
+#ifdef AFL_USE_FISHFUZZ
+cl::opt<std::string> FishTargetName(
+    "fishfuzz-target-name",
+    cl::desc("the target program that is linking")
+);
+#endif 
 
 namespace llvm {
 
@@ -507,13 +516,19 @@ bool ModuleSanitizerCoverageLTO::instrumentModule(
 
   }
 
+  printf("var FishTargetName is %s\n", FishTargetName.c_str());
+
 #ifdef AFL_USE_FISHFUZZ
 
-  /* check the ld-temp.o.callgraph.dot, rename to AFL_FISHFUZZ_TARGET */
+  /* check the ld-temp.o.callgraph.dot, rename to AFL_FISHFUZZ_TARGET 
+     if it's our target. The ld-temp.o.callgraph.dot might be rewritten 
+     if there are multiple linking threads, now just compile in one thread 
+     to mitigate */
 
-  if (getenv("AFL_FISHFUZZ_IGNORE") == NULL) {
-
-    if ((ptr = getenv("AFL_FISHFUZZ_TARGET")) != NULL) {
+  // if (getenv("AFL_FISHFUZZ_IGNORE") == NULL) {
+    
+    if (!FishTargetName.empty()) {
+    // if ((ptr = getenv("AFL_FISHFUZZ_TARGET")) != NULL) {
 
       char *bptr = getenv("AFL_FISHFUZZ_BIN"),
           *dptr = getenv("AFL_FISHFUZZ_DIR");
@@ -529,7 +544,8 @@ bool ModuleSanitizerCoverageLTO::instrumentModule(
 
       }
 
-      if (strcmp(ptr, bptr) == 0) { 
+      // only log when it's our target
+      if (strcmp(FishTargetName.c_str(), bptr) == 0) { 
 
         if (access((char *)"ld-temp.o.callgraph.dot", F_OK) != -1) {
 
@@ -542,21 +558,26 @@ bool ModuleSanitizerCoverageLTO::instrumentModule(
 
         } else FATAL("callgraph not found!");
 
-      }
+        char fid_name[1024 * 16];
+        sprintf(fid_name, "%s/fid", dptr);
 
-      char fid_name[1024 * 16];
-      sprintf(fid_name, "%s/fid", dptr);
+        fFile.open(fid_name, std::ofstream::out | std::ofstream::app);
+        if (!fFile.is_open()) FATAL("Cannot access function id file %s", fid_name);
+        
+        ACTF("Now working on FishFuzz targets...");
 
-      fFile.open(fid_name, std::ofstream::out | std::ofstream::app);
-      if (!fFile.is_open()) FATAL("Cannot access function id file %s", fid_name);
+      } else {printf("btr is %s, target name is %s", bptr, FishTargetName.c_str());}
 
-    } else {
+      // unsetenv("AFL_FISHFUZZ_TARGET");
 
-      FATAL("AFL_FISHFUZZ_TARGET not found!");
+    } 
+    // else {
 
-    }
+    //   WARNF("FishTargetName not specified!");
 
-  }
+    // }
+
+  // }
 #endif
 
   // we make this the default as the fixed map has problems with

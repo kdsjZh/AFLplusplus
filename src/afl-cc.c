@@ -17,6 +17,8 @@
 
 #define AFL_MAIN
 
+#define AFL_USE_FISHFUZZ
+
 #ifndef _GNU_SOURCE
   #define _GNU_SOURCE 1
 #endif
@@ -99,6 +101,10 @@ typedef enum {
 } compiler_mode_id;
 
 static u8 cwd[4096];
+
+#ifdef AFL_USE_FISHFUZZ
+u8 *fishfuzz_target_name = NULL;
+#endif 
 
 char instrument_mode_string[18][18] = {
 
@@ -2316,6 +2322,28 @@ void add_lto_linker(aflcc_state_t *aflcc) {
 /* Add params to launch SanitizerCoverageLTO.so when linking  */
 void add_lto_passes(aflcc_state_t *aflcc) {
 
+
+#ifdef AFL_USE_FISHFUZZ
+  if (fishfuzz_target_name) {
+
+    // char param_buf[16 * 1024];
+    // sprintf(param_buf, "-fishfuzz-target-name=%s", fishfuzz_target_name);
+
+    // include -Xclang again to register options
+    // acccording to https://github.com/llvm/llvm-project/issues/56137
+    // seems only work if LLVM>=17 https://github.com/llvm/llvm-project/issues/63604
+    insert_param(aflcc, "-Xclang");
+    insert_param(aflcc, "-load");
+    insert_param(aflcc, "-Xclang");
+    insert_object(aflcc, "SanitizerCoverageLTO.so", 0, 0);
+
+    // insert_param(aflcc, "-mllvm");
+    // insert_param(aflcc, param_buf); 
+    // ck_free(fishfuzz_target_name);
+
+  }
+#endif
+
 #if defined(AFL_CLANG_LDPATH) && LLVM_MAJOR >= 15
   // The NewPM implementation only works fully since LLVM 15.
   insert_object(aflcc, "SanitizerCoverageLTO.so", "-Wl,--load-pass-plugin=%s",
@@ -2327,6 +2355,18 @@ void add_lto_passes(aflcc_state_t *aflcc) {
   insert_param(aflcc, "-fno-experimental-new-pass-manager");
   insert_object(aflcc, "SanitizerCoverageLTO.so", "-Wl,-mllvm=-load=%s", 0);
 #endif
+
+#ifdef AFL_USE_FISHFUZZ
+  if (fishfuzz_target_name) {
+
+    char param_buf[16 * 1024];
+    sprintf(param_buf, "-fishfuzz-target-name=%s", fishfuzz_target_name);
+    insert_param(aflcc, "-mllvm");
+    insert_param(aflcc, param_buf); 
+    ck_free(fishfuzz_target_name);
+
+  }
+#endif 
 
   insert_param(aflcc, "-Wl,--allow-multiple-definition");
 
@@ -3490,13 +3530,13 @@ static void edit_params(aflcc_state_t *aflcc, u32 argc, char **argv,
 
 }
 
-
+#ifdef AFL_USE_FISHFUZZ
 /* extract the target executable name and update to AFL_FISHFUZZ_TARGET */
 static void check_target_name(aflcc_state_t *aflcc, u32 argc, char **argv) {
 
   u8 is_linking = 0, is_compile = 0;
 
-  unsetenv("AFL_FISHFUZZ_TARGET");
+  // unsetenv("AFL_FISHFUZZ_TARGET");
   unsetenv("AFL_FISHFUZZ_IGNORE");
 
   for (u32 i = 0; i < argc; i ++) {
@@ -3507,7 +3547,7 @@ static void check_target_name(aflcc_state_t *aflcc, u32 argc, char **argv) {
       
       is_compile = 1;
 
-      if (is_linking) { is_linking = 0; unsetenv("AFL_FISHFUZZ_TARGET"); }
+      if (is_linking) { is_linking = 0; ck_free(fishfuzz_target_name); fishfuzz_target_name = NULL; }//unsetenv("AFL_FISHFUZZ_TARGET"); }
 
     }
 
@@ -3519,10 +3559,19 @@ static void check_target_name(aflcc_state_t *aflcc, u32 argc, char **argv) {
 
         char *last_slash = strrchr(argv[i + 1], '/');
         
-        if (last_slash) 
-          setenv("AFL_FISHFUZZ_TARGET", last_slash + 1, 1);
-        else 
-          setenv("AFL_FISHFUZZ_TARGET", argv[i + 1], 1);
+        if (last_slash) {
+
+          // setenv("AFL_FISHFUZZ_TARGET", last_slash + 1, 1);
+          fishfuzz_target_name = ck_alloc(strlen(last_slash) + 1);
+          strncpy(fishfuzz_target_name, last_slash, strlen(last_slash));
+
+        } else {
+          
+          // setenv("AFL_FISHFUZZ_TARGET", argv[i + 1], 1);
+          fishfuzz_target_name = ck_alloc(strlen(argv[i + 1]) + 1);
+          strncpy(fishfuzz_target_name, argv[i + 1], strlen(argv[i + 1]));
+
+        }
 
       }
 
@@ -3532,6 +3581,7 @@ static void check_target_name(aflcc_state_t *aflcc, u32 argc, char **argv) {
   
 }
 
+#endif
 
 /* Main entry point */
 int main(int argc, char **argv, char **envp) {
@@ -3541,7 +3591,9 @@ int main(int argc, char **argv, char **envp) {
 
   check_environment_vars(envp);
 
+#ifdef AFL_USE_FISHFUZZ
   check_target_name(aflcc, argc, argv);
+#endif 
 
   find_built_deps(aflcc);
 
