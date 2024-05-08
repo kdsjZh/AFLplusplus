@@ -369,7 +369,9 @@ llvmGetPassPluginInfo() {
 
 #ifdef AFL_USE_FISHFUZZ
 #if LLVM_VERSION_MAJOR >= 15
-                  MPM.addPass(CallGraphDOTPrinterPass());
+                  if (!FishTargetName.empty()) {
+                    MPM.addPass(CallGraphDOTPrinterPass());
+                  }
 #endif
 #endif
 
@@ -516,8 +518,6 @@ bool ModuleSanitizerCoverageLTO::instrumentModule(
 
   }
 
-  printf("var FishTargetName is %s\n", FishTargetName.c_str());
-
 #ifdef AFL_USE_FISHFUZZ
 
   /* check the ld-temp.o.callgraph.dot, rename to AFL_FISHFUZZ_TARGET 
@@ -525,59 +525,42 @@ bool ModuleSanitizerCoverageLTO::instrumentModule(
      if there are multiple linking threads, now just compile in one thread 
      to mitigate */
 
-  // if (getenv("AFL_FISHFUZZ_IGNORE") == NULL) {
-    
-    if (!FishTargetName.empty()) {
-    // if ((ptr = getenv("AFL_FISHFUZZ_TARGET")) != NULL) {
+  if (!FishTargetName.empty()) {
 
-      char *bptr = getenv("AFL_FISHFUZZ_BIN"),
-          *dptr = getenv("AFL_FISHFUZZ_DIR");
+    char *bptr = getenv("AFL_FISHFUZZ_BIN"),
+         *dptr = getenv("AFL_FISHFUZZ_DIR");
 
-      if (bptr == NULL) FATAL("Please specify the AFL_FISHFUZZ_BIN in FishFuzz mode!");
+    if (!dptr || !bptr) FATAL("Please specify the AFL_FISHFUZZ_DIR/BIN in FishFuzz mode!");
 
-      if (dptr == NULL) FATAL("Please specify the AFL_FISHFUZZ_DIR in FishFuzz mode!");
+    struct stat st;
+    if (stat(dptr, &st) || !S_ISDIR(st.st_mode)) {
 
-      struct stat st;
-      if (stat(dptr, &st) || !S_ISDIR(st.st_mode)) {
+      if (mkdir(dptr, 0777)) FATAL("Failed creating FishFuzz temp dir!");
 
-        if (mkdir(dptr, 0777)) FATAL("Failed creating FishFuzz temp dir!");
+    }
 
-      }
+    // we only give FishTargetName when it match AFL_FISHFUZZ_BIN,
+    // so don't need check again here
+    if (access((char *)"ld-temp.o.callgraph.dot", F_OK) != -1) {
 
-      // only log when it's our target
-      if (strcmp(FishTargetName.c_str(), bptr) == 0) { 
+      char dst_name[1024 * 16];
+      sprintf(dst_name, "%s/%s.callgraph.dot", dptr, bptr);
 
-        if (access((char *)"ld-temp.o.callgraph.dot", F_OK) != -1) {
+      if (rename((char *)"ld-temp.o.callgraph.dot", dst_name))
+        FATAL("Failed moving callgraph");
 
-          char dst_name[1024 * 16];
+    } else FATAL("callgraph not found!");
 
-          sprintf(dst_name, "%s/%s.callgraph.dot", dptr, bptr);
+    char fid_name[1024 * 16];
+    sprintf(fid_name, "%s/fid", dptr);
 
-          if (rename((char *)"ld-temp.o.callgraph.dot", dst_name))
-            FATAL("Failed moving callgraph");
-
-        } else FATAL("callgraph not found!");
-
-        char fid_name[1024 * 16];
-        sprintf(fid_name, "%s/fid", dptr);
-
-        fFile.open(fid_name, std::ofstream::out | std::ofstream::app);
-        if (!fFile.is_open()) FATAL("Cannot access function id file %s", fid_name);
+    fFile.open(fid_name, std::ofstream::out | std::ofstream::app);
+    if (!fFile.is_open()) FATAL("Cannot access function id file %s", fid_name);
         
-        ACTF("Now working on FishFuzz targets...");
+    ACTF("Now working on FishFuzz targets...");
 
-      } else {printf("btr is %s, target name is %s", bptr, FishTargetName.c_str());}
+  } 
 
-      // unsetenv("AFL_FISHFUZZ_TARGET");
-
-    } 
-    // else {
-
-    //   WARNF("FishTargetName not specified!");
-
-    // }
-
-  // }
 #endif
 
   // we make this the default as the fixed map has problems with

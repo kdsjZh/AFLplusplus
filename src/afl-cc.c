@@ -2322,28 +2322,6 @@ void add_lto_linker(aflcc_state_t *aflcc) {
 /* Add params to launch SanitizerCoverageLTO.so when linking  */
 void add_lto_passes(aflcc_state_t *aflcc) {
 
-
-#ifdef AFL_USE_FISHFUZZ
-  if (fishfuzz_target_name) {
-
-    // char param_buf[16 * 1024];
-    // sprintf(param_buf, "-fishfuzz-target-name=%s", fishfuzz_target_name);
-
-    // include -Xclang again to register options
-    // acccording to https://github.com/llvm/llvm-project/issues/56137
-    // seems only work if LLVM>=17 https://github.com/llvm/llvm-project/issues/63604
-    insert_param(aflcc, "-Xclang");
-    insert_param(aflcc, "-load");
-    insert_param(aflcc, "-Xclang");
-    insert_object(aflcc, "SanitizerCoverageLTO.so", 0, 0);
-
-    // insert_param(aflcc, "-mllvm");
-    // insert_param(aflcc, param_buf); 
-    // ck_free(fishfuzz_target_name);
-
-  }
-#endif
-
 #if defined(AFL_CLANG_LDPATH) && LLVM_MAJOR >= 15
   // The NewPM implementation only works fully since LLVM 15.
   insert_object(aflcc, "SanitizerCoverageLTO.so", "-Wl,--load-pass-plugin=%s",
@@ -2359,11 +2337,22 @@ void add_lto_passes(aflcc_state_t *aflcc) {
 #ifdef AFL_USE_FISHFUZZ
   if (fishfuzz_target_name) {
 
-    char param_buf[16 * 1024];
-    sprintf(param_buf, "-fishfuzz-target-name=%s", fishfuzz_target_name);
-    insert_param(aflcc, "-mllvm");
-    insert_param(aflcc, param_buf); 
-    ck_free(fishfuzz_target_name);
+    u8 *fish_bin_ptr = getenv("AFL_FISHFUZZ_BIN");
+
+    if (!fish_bin_ptr) FATAL("AFL_FISHFUZZ_BIN unspecified!");
+
+    if (strcmp(fish_bin_ptr, fishfuzz_target_name) == 0) {
+
+      char param_buf[16 * 1024];
+      sprintf(param_buf, "-Wl,-mllvm=-fishfuzz-target-name=%s", fishfuzz_target_name);
+      // from lld/test/ELF/lto/ltopasses-extension.ll, load again to register the argument
+      // similar to #56137, register pass by loading again to avoid missing argument
+      // we do it in linking stage
+      insert_object(aflcc, "SanitizerCoverageLTO.so", "-Wl,-mllvm=-load=%s", 0);
+      insert_param(aflcc, param_buf); 
+      ck_free(fishfuzz_target_name);
+    
+    }
 
   }
 #endif 
