@@ -128,4 +128,5 @@ void cull_queue_exploit(afl_state_t *, struct fishfuzz_info *);
 
 void update_function_cov(afl_state_t *, struct fishfuzz_info *);
 
+void cleanup_fishfuzz_info(struct fishfuzz_info *);
 #endif

@@ -74,7 +74,7 @@ void initialized_dist_map(afl_state_t *afl) {
     const char *dst_s = func_shortest_value->string;
 
     // DEBUG
-    printf("trying to visit %d th item of global_dist_map, which is %p\n", atoi(dst_s), &(global_dist_map[atoi(dst_s)]));
+    // printf("trying to visit %d th item of global_dist_map, which is %p\n", atoi(dst_s), &(global_dist_map[atoi(dst_s)]));
     struct func_dist_map *new_dst = &(global_dist_map[atoi(dst_s)]);
     new_dst->shortest_list = NULL;
     new_dst->shortest_tail = NULL;
@@ -225,7 +225,7 @@ void update_bitmap_score_explore(afl_state_t *afl, struct fishfuzz_info *ff_info
         
   }
 
-  if (!has_new_func) return ;
+  if (!has_new_func) { ck_free(trace_func); return ; }
 
   u64 fav_factor = q->len * q->exec_us;
 
@@ -559,4 +559,53 @@ void update_function_cov(afl_state_t *afl, struct fishfuzz_info *ff_info) {
   
   }
 
+}
+
+void free_one_distmap(struct func_dist_map *dist) {
+
+  if (dist == NULL) return ;
+
+  struct func_shortest *end = dist->shortest_tail,
+                       *cur = dist->shortest_list,
+                       *next = dist->shortest_list;
+  while (cur != end) {
+
+    next = cur->next;
+    ck_free(cur);
+    cur = next;
+
+  }
+
+  ck_free(cur);
+
+}
+
+void cleanup_fishfuzz_info(struct fishfuzz_info *ff_info) {
+
+  if (ff_info->reach_bits_count) ck_free(ff_info->reach_bits_count);
+
+  if (ff_info->trigger_bits_count) ck_free(ff_info->trigger_bits_count);
+
+  if (ff_info->shortest_dist) ck_free(ff_info->shortest_dist);
+
+  if (ff_info->unvisited_func_map) ck_free(ff_info->unvisited_func_map);
+
+  if (ff_info->iterated_func_map) ck_free(ff_info->iterated_func_map);
+
+  if (ff_info->virgin_funcs) ck_free(ff_info->virgin_funcs);
+
+  if (ff_info->global_dist_map) {
+
+    for (u32 i = 1; i <= ff_info->func_map_size; i ++) {
+
+      struct func_dist_map *dist = &ff_info->global_dist_map[i];
+      if (dist) free_one_distmap(dist);
+
+    }
+
+    ck_free(ff_info->global_dist_map);
+
+    ck_free(ff_info);
+
+  }
 }

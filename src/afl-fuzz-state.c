@@ -28,6 +28,10 @@
 #include "afl-fuzz.h"
 #include "envs.h"
 
+#ifdef AFL_USE_FISHFUZZ
+  #include "fishfuzz.h"
+#endif 
+
 char *power_names[POWER_SCHEDULES_NUM] = {"explore", "mmopt", "exploit",
                                           "fast",    "coe",   "lin",
                                           "quad",    "rare",  "seek"};
@@ -721,6 +725,13 @@ void afl_state_deinit(afl_state_t *afl) {
   ck_free(afl->clean_trace_custom);
   ck_free(afl->first_trace);
   ck_free(afl->map_tmp_buf);
+
+#ifdef AFL_USE_FISHFUZZ
+
+  if (afl->ff_info) cleanup_fishfuzz_info(afl->ff_info);
+  if (afl->top_rated_explore) ck_free(afl->top_rated_explore);
+  
+#endif 
 
   list_remove(&afl_states, afl);
 
