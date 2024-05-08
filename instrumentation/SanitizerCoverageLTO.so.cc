@@ -523,9 +523,11 @@ bool ModuleSanitizerCoverageLTO::instrumentModule(
   /* check the ld-temp.o.callgraph.dot, rename to AFL_FISHFUZZ_TARGET 
      if it's our target. The ld-temp.o.callgraph.dot might be rewritten 
      if there are multiple linking threads, now just compile in one thread 
-     to mitigate */
+     to mitigate 
+     additionally, for cmplog mode, we don't output anything
+     */
 
-  if (!FishTargetName.empty()) {
+  if (!FishTargetName.empty() || !getenv("AFL_LLVM_CMPLOG")) {
 
     char *bptr = getenv("AFL_FISHFUZZ_BIN"),
          *dptr = getenv("AFL_FISHFUZZ_DIR");
