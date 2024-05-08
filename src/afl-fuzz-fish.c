@@ -74,7 +74,7 @@ void initialized_dist_map(afl_state_t *afl) {
     const char *dst_s = func_shortest_value->string;
 
     // DEBUG
-    // printf("trying to visit %d th item of global_dist_map, which is %p\n", atoi(dst_s), &(global_dist_map[atoi(dst_s)]));
+    printf("trying to visit %d th item of global_dist_map, which is %p\n", atoi(dst_s), &(global_dist_map[atoi(dst_s)]));
     struct func_dist_map *new_dst = &(global_dist_map[atoi(dst_s)]);
     new_dst->shortest_list = NULL;
     new_dst->shortest_tail = NULL;
@@ -146,6 +146,7 @@ void initialize_fishfuzz(afl_state_t *afl) {
   // take care of off-by-one, the func id start from 1
   afl->ff_info->global_dist_map = (struct func_dist_map *)ck_alloc(
                       sizeof(struct func_dist_map) * (nfunc + 1));
+  afl->ff_info->func_map_size = nfunc;
 
   // we initialize the distance map with start_bb/end_bb here
   struct func_dist_map *global_dist_map = afl->ff_info->global_dist_map;
@@ -163,6 +164,11 @@ void initialize_fishfuzz(afl_state_t *afl) {
 
   fclose(file);
 
+  afl->ff_info->unvisited_func_map = (u8*)ck_alloc(sizeof(u8) * (afl->ff_info->func_map_size + 1));
+  afl->ff_info->iterated_func_map = (u8*)ck_alloc(sizeof(u8) * (afl->ff_info->func_map_size + 1));
+
+  for (u64 i = 1; i <= afl->ff_info->func_map_size; i ++) afl->ff_info->unvisited_func_map[i] = 1;
+
   initialized_dist_map(afl);
 
 }
@@ -177,22 +183,28 @@ void update_bitmap_score_explore(afl_state_t *afl, struct fishfuzz_info *ff_info
 
   if (!ff_info->shortest_dist) {
     
-    ff_info->shortest_dist = (u32 *)ck_alloc(sizeof(u32) * ff_info->func_map_size);
+    ff_info->shortest_dist = (u32 *)ck_alloc(sizeof(u32) * (ff_info->func_map_size + 1));
 
-    for (u32 i = 0; i < ff_info->func_map_size; i ++) ff_info->shortest_dist[i] = UNREACHABLE_DIST;
+    for (u32 i = 1; i <= ff_info->func_map_size; i ++) ff_info->shortest_dist[i] = UNREACHABLE_DIST;
   
   }
 
+  if (!afl->top_rated_explore) {
+
+    afl->top_rated_explore = ck_alloc(sizeof(void *) * (ff_info->func_map_size + 1));
+
+  }
+
   // quickly generate a trace_func from trace_bits
-  u8 *trace_func = ck_alloc(sizeof(u8) * ff_info->func_map_size);
+  u8 *trace_func = ck_alloc(sizeof(u8) * (ff_info->func_map_size + 1));
   struct func_dist_map *global_dist_map = ff_info->global_dist_map;
 
   for (u32 bb = 0, fid = 1; bb < afl->fsrv.map_size; fid += 1) {
 
-    bb = global_dist_map[fid].start_bb;
-    
     if (fid > ff_info->func_map_size) break;
 
+    bb = global_dist_map[fid].start_bb;
+    
     while (bb++ <= global_dist_map[fid].end_bb) {
 
       if (unlikely(afl->fsrv.trace_bits[bb])) {
@@ -206,15 +218,18 @@ void update_bitmap_score_explore(afl_state_t *afl, struct fishfuzz_info *ff_info
 
   }
 
-  for (u32 i = 0; i < ff_info->func_map_size; i ++) {
+  u8 has_new_func = 0;
+  for (u32 i = 1; i <= ff_info->func_map_size; i ++) {
 
-    if (unlikely(trace_func[i]) && unlikely(!ff_info->iterated_func_map[i])) return ;
+    if (unlikely(trace_func[i]) && unlikely(!ff_info->iterated_func_map[i])) { has_new_func = 1; break; }
         
   }
 
+  if (!has_new_func) return ;
+
   u64 fav_factor = q->len * q->exec_us;
 
-  for (u32 dst_func = 0; dst_func < ff_info->func_map_size; dst_func ++) {
+  for (u32 dst_func = 1; dst_func <= ff_info->func_map_size; dst_func ++) {
 
     if (!ff_info->unvisited_func_map[dst_func] || ff_info->virgin_funcs[dst_func]) continue;
 
@@ -270,7 +285,7 @@ void update_bitmap_score_explore(afl_state_t *afl, struct fishfuzz_info *ff_info
     
   }
 
-  for (u32 i = 0; i < ff_info->func_map_size; i ++) {
+  for (u32 i = 1; i <= ff_info->func_map_size; i ++) {
 
     if (unlikely(trace_func[i])) ff_info->iterated_func_map[i] = 1;
       
@@ -290,6 +305,7 @@ int compare_u32(const void* a, const void* b) {
   if (arg1 > arg2) return 1;
   return 0;
 }
+
 
 void target_ranking(afl_state_t *afl, struct fishfuzz_info *ff_info) {
 
@@ -384,7 +400,7 @@ void cull_queue_explore(afl_state_t *afl, struct fishfuzz_info *ff_info) {
 
   }
 
-  for (i = 0; i < ff_info->func_map_size; i++) {
+  for (i = 1; i <= ff_info->func_map_size; i++) {
     if (afl->top_rated_explore[i] && !ff_info->virgin_funcs[i]) {
       
       if (afl->top_rated_explore[i]->favored) continue;
@@ -406,6 +422,7 @@ void cull_queue_explore(afl_state_t *afl, struct fishfuzz_info *ff_info) {
   }
 
 }
+
 
 void cull_queue_exploit(afl_state_t *afl, struct fishfuzz_info *ff_info) {
   #define TRACE_MINI_VISITED(trace_mini, idx) (trace_mini[idx >> 3] & (1 << (idx & 7)))
@@ -480,7 +497,7 @@ void cull_queue_exploit(afl_state_t *afl, struct fishfuzz_info *ff_info) {
       for (i = 0; i < afl->fsrv.map_size; i++) {
         if (ff_info->reach_bits_count[i] && !ff_info->trigger_bits_count[i] && 
             ff_info->reach_bits_count[i] <= ff_info->exploit_threshould / 10) {
-          struct queue_entry *selected = afl->top_rated_exploit[i];
+          struct queue_entry *selected = afl->top_rated[i];
 
           if (!selected) continue;
           /* only select already fuzzed favored seed and not marked as retry */
@@ -507,3 +524,39 @@ void cull_queue_exploit(afl_state_t *afl, struct fishfuzz_info *ff_info) {
 
 }
 
+void update_function_cov(afl_state_t *afl, struct fishfuzz_info *ff_info) {
+
+  if (!afl->fsrv.trace_bits) return ;
+  
+  if (unlikely(!ff_info->virgin_funcs)) {
+
+    ff_info->virgin_funcs = ck_alloc(sizeof(u8) * (ff_info->func_map_size + 1));
+  
+  }
+  
+  for (u32 i = 1; i <= ff_info->func_map_size; i ++) {
+  
+    if (!ff_info->virgin_funcs[i]) {
+
+      u32 bb = ff_info->global_dist_map[i].start_bb;
+      u8 visited = 0;
+
+      while (bb++ <= ff_info->global_dist_map[i].end_bb) {
+
+        if (afl->fsrv.trace_bits[bb]) {visited = 1; break;}
+
+      }
+      
+      if (visited) {
+
+        ff_info->virgin_funcs[i] = 1;
+        ff_info->function_changed = 1;
+        ff_info->current_func_covered += 1;
+      
+      }
+  
+    }
+  
+  }
+
+}

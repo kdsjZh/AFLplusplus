@@ -670,6 +670,16 @@ void add_to_queue(afl_state_t *afl, u8 *fname, u32 len, u8 passed_det) {
 
   q->skipdet_e = (struct skipdet_entry *)ck_alloc(sizeof(struct skipdet_entry));
 
+#ifdef AFL_USE_FISHFUZZ
+  if (afl->use_fishfuzz) {
+
+    struct fishfuzz_info *ff_info = afl->ff_info;
+
+    update_function_cov(afl, ff_info);
+
+  }
+#endif 
+
 }
 
 /* Destroy the entire queue. */
