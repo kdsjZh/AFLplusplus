@@ -3552,7 +3552,7 @@ static void check_target_name(aflcc_state_t *aflcc, u32 argc, char **argv) {
 
           // setenv("AFL_FISHFUZZ_TARGET", last_slash + 1, 1);
           fishfuzz_target_name = ck_alloc(strlen(last_slash) + 1);
-          strncpy(fishfuzz_target_name, last_slash, strlen(last_slash));
+          strncpy(fishfuzz_target_name, last_slash + 1, strlen(last_slash) - 1);
 
         } else {
           
@@ -3561,6 +3561,9 @@ static void check_target_name(aflcc_state_t *aflcc, u32 argc, char **argv) {
           strncpy(fishfuzz_target_name, argv[i + 1], strlen(argv[i + 1]));
 
         }
+
+        // DEBUG
+        // ACTF("Target Name is %s.", fishfuzz_target_name);
 
       }
 
