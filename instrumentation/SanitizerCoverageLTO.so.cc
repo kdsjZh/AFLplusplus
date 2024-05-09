@@ -527,7 +527,7 @@ bool ModuleSanitizerCoverageLTO::instrumentModule(
      additionally, for cmplog mode, we don't output anything
      */
 
-  if (!FishTargetName.empty() || !getenv("AFL_LLVM_CMPLOG")) {
+  if (!FishTargetName.empty() && !getenv("AFL_LLVM_CMPLOG")) {
 
     char *bptr = getenv("AFL_FISHFUZZ_BIN"),
          *dptr = getenv("AFL_FISHFUZZ_DIR");
