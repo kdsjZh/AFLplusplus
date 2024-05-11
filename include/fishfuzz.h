@@ -42,37 +42,6 @@ struct func_dist_map {
                        *shortest_tail;
 };
 
-
-struct fishfuzz_profile {
-
-  u8  *fish_debug_log,                  
-      *exploit_debug_log,
-      *cull_debug_log,
-      *function_debug_log,
-      *seed_selec_log,
-      *exploit_log,
-      *dev_log;
-  
-  FILE *fish_debug_fd,
-      *exploit_debug_fd,
-      *cull_debug_fd,
-      *function_debug_fd,
-      *seed_selec_fd,
-      *exploit_fd,
-      *dev_fd;
-  
-  u64 last_log_time,
-      log_cull_origin_time,
-      log_cull_explore_time,
-      log_cull_exploit_time,
-      log_cull_other_time,
-      log_total_fuzz_time,
-      log_total_iteration_time,
-      log_update_explore_time,
-      log_update_exploit_time;
-
-};
-
 struct fishfuzz_info {
 
   u32 *reach_bits_count,
@@ -112,8 +81,6 @@ struct fishfuzz_info {
 
   struct func_dist_map *global_dist_map;
 
-  struct fishfuzz_profile *prof;
-
 };
 
 
@@ -125,6 +92,7 @@ void update_fishfuzz_states(afl_state_t *, struct fishfuzz_info *);
 
 void cull_queue_explore(afl_state_t *, struct fishfuzz_info *);
 void cull_queue_exploit(afl_state_t *, struct fishfuzz_info *);
+void cull_queue_fishfuzz(afl_state_t *);
 
 void update_function_cov(afl_state_t *, struct fishfuzz_info *);
 
