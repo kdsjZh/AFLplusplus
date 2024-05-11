@@ -51,11 +51,6 @@ struct fishfuzz_info {
       current_targets_reached,
       current_targets_triggered;
   
-  u32 queued_retryed,
-      queued_fuzzed_favored,
-      queued_fuzzed_non_favored,
-      queued_fuzzed_retryed;
-  
   u64 last_reach_time,
       last_trigger_time,
       last_func_time,

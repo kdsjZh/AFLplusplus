@@ -863,16 +863,9 @@ void cull_queue_origin(afl_state_t *afl) {
 
   afl->queued_favored = 0;
   afl->pending_favored = 0;
-#ifdef AFL_USE_FISHFUZZ
-  struct fishfuzz_info *ff_info = afl->ff_info;
-  ff_info->queued_retryed = 0;
-#endif
 
   for (i = 0; i < afl->queued_items; i++) {
 
-#ifdef AFL_USE_FISHFUZZ
-    afl->queue_buf[i]->retry = 0;
-#endif 
     afl->queue_buf[i]->favored = 0;
 
   }

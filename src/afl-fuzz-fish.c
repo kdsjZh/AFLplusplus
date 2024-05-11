@@ -391,12 +391,10 @@ void cull_queue_explore(afl_state_t *afl, struct fishfuzz_info *ff_info) {
 
   afl->queued_favored = 0;
   afl->pending_favored = 0;
-  ff_info->queued_retryed = 0;
 
   for (i = 0; i < afl->queued_items; i++) {
 
     afl->queue_buf[i]->favored = 0;
-    afl->queue_buf[i]->retry = 0;
 
   }
 
@@ -432,7 +430,7 @@ void cull_queue_exploit(afl_state_t *afl, struct fishfuzz_info *ff_info) {
   u32 len = (afl->fsrv.map_size >> 3), i;
 
   /* if score not changed and we've already have favored seeds */
-  u8 should_skip = (afl->pending_favored + ff_info->queued_retryed == 0);
+  u8 should_skip = (afl->pending_favored == 0);
   if (afl->non_instrumented_mode || (!ff_info->target_changed && !should_skip)) return;
 
   /* for first cull_queue, ignore */
@@ -443,12 +441,10 @@ void cull_queue_exploit(afl_state_t *afl, struct fishfuzz_info *ff_info) {
 
   afl->queued_favored = 0;
   afl->pending_favored = 0;
-  ff_info->queued_retryed = 0;
 
   for (i = 0; i < afl->queued_items; i++) {
 
     afl->queue_buf[i]->favored = 0;
-    afl->queue_buf[i]->retry = 0;
 
   }
 
@@ -477,43 +473,6 @@ void cull_queue_exploit(afl_state_t *afl, struct fishfuzz_info *ff_info) {
       if (!selected->was_fuzzed) afl->pending_favored++;
 
     }
-  }
-
-  /* maybe retry some seeds */
-  if (afl->queued_favored && afl->pending_favored * 100 / afl->queued_favored < 10) {
-
-    u64 total_visit_cnt = 0, total_trigger_cnt = 0, avg_violation_visit = 0; // avg_violation_trigger = 0
-    for (u32 i = 0; i < afl->fsrv.map_size; i ++) {
-
-      if (ff_info->trigger_bits_count[i]) total_trigger_cnt += ff_info->trigger_bits_count[i];
-      if (ff_info->reach_bits_count[i]) total_visit_cnt += ff_info->reach_bits_count[i];
-    
-    }
-
-    // if (ff_info->current_targets_triggered) avg_violation_trigger = total_trigger_cnt / ff_info->current_targets_triggered;
-    if (ff_info->current_targets_reached) avg_violation_visit = total_visit_cnt / ff_info->current_targets_reached;
-    /* pick up favored seeds that is not well explored */
-    if (avg_violation_visit) {
-      for (i = 0; i < afl->fsrv.map_size; i++) {
-        if (ff_info->reach_bits_count[i] && !ff_info->trigger_bits_count[i] && 
-            ff_info->reach_bits_count[i] <= ff_info->exploit_threshould / 10) {
-          struct queue_entry *selected = afl->top_rated[i];
-
-          if (!selected) continue;
-          /* only select already fuzzed favored seed and not marked as retry */
-          if (!selected->favored || !selected->was_fuzzed || selected->retry) continue;
-
-          if (avg_violation_visit > ff_info->reach_bits_count[i]) {
-            
-            ff_info->queued_retryed ++;
-            selected->retry = 1;
-            
-          }
-        
-        }
-      }
-    }
-
   }
 
   for (i = 0; i < afl->queued_items; i++) {
@@ -547,7 +506,7 @@ void cull_queue_fishfuzz(afl_state_t *afl) {
   if (getenv("FF_INTRA_EXPLORE")) intra_explore_limit = atoi(getenv("FF_INTRA_EXPLORE"));
   if (getenv("FF_NO_EXPLOIT")) ff_info->no_exploitation = 1;
 
-  u8 no_pending_fav = (afl->pending_favored + ff_info->queued_retryed == 0);
+  u8 no_pending_fav = (afl->pending_favored == 0);
   u8 find_new_func = (get_cur_time() - ff_info->last_func_time <= inter_explore_limit);
   u8 find_new_targ = (get_cur_time() - ff_info->last_reach_time <= intra_explore_limit);
   u8 trig_new_targ = (get_cur_time() - ff_info->last_trigger_time <= target_exploit_limit);
